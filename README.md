@@ -364,6 +364,21 @@ contract are maintained alongside it.
 
 ---
 
+## 🎧 Podcast
+
+A short, beginner-friendly audio series on building with automatica — what to type, what
+to say to Alexa, and the gotchas to avoid. Subscribe to the **automatica For Particle**
+feed: https://podcasts.jeremy.ninja/api/v1/feeds/5a4c5841-215e-463f-a7e5-69152cd739f5/feed.xml
+
+| Episode | Listen |
+|---|---|
+| **Ep 1 — Your First Voice-Controlled Device** | https://dc9qypb8dyvso.cloudfront.net/automatica-ep1-your-first-voice-controlled-device.m4a |
+| **Ep 2 — Lights, Dimmers & Color** | https://dc9qypb8dyvso.cloudfront.net/automatica-ep2-lights-dimmers-and-color.m4a |
+| **Ep 3 — Sensors, Locks & the Home** | https://dc9qypb8dyvso.cloudfront.net/automatica-ep3-sensors-locks-and-the-home.m4a |
+| **Ep 4 — One Device, Many Controls** | https://dc9qypb8dyvso.cloudfront.net/automatica-ep4-one-device-many-controls.m4a |
+
+---
+
 ## License
 
 [MIT](LICENSE) © Jeremy Proffitt
