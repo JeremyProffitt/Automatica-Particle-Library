@@ -6,7 +6,7 @@
 </p>
 
 <p align="center">
-  <img alt="library version" src="https://img.shields.io/badge/library-v0.1.2-blue">
+  <img alt="library version" src="https://img.shields.io/badge/library-v0.1.3-blue">
   <img alt="platforms" src="https://img.shields.io/badge/platforms-Photon%20%7C%20P2%20%7C%20Boron%20%7C%20Argon-2aa198">
   <img alt="Alexa Smart Home" src="https://img.shields.io/badge/Alexa-Smart%20Home-00caff">
   <img alt="license" src="https://img.shields.io/badge/license-MIT-green">
@@ -73,7 +73,7 @@ particle flash <device-name> firmware.bin
 ### `library.properties`
 ```properties
 name=automatica
-version=0.1.2
+version=0.1.3
 author=Jeremy Proffitt
 category=IoT
 architectures=*
