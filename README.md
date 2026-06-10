@@ -1,4 +1,4 @@
-<h1 align="center">automatica</h1>
+<h1 align="center">Automatica</h1>
 
 <p align="center">
   <strong>Code-first Alexa Smart Home for Particle devices.</strong><br>
@@ -6,7 +6,7 @@
 </p>
 
 <p align="center">
-  <img alt="library version" src="https://img.shields.io/badge/library-v0.1.1-blue">
+  <img alt="library version" src="https://img.shields.io/badge/library-v0.1.2-blue">
   <img alt="platforms" src="https://img.shields.io/badge/platforms-Photon%20%7C%20P2%20%7C%20Boron%20%7C%20Argon-2aa198">
   <img alt="Alexa Smart Home" src="https://img.shields.io/badge/Alexa-Smart%20Home-00caff">
   <img alt="license" src="https://img.shields.io/badge/license-MIT-green">
@@ -16,7 +16,7 @@
 
 ## What is this?
 
-`automatica` lets your Particle device speak Alexa Smart Home **without writing any cloud
+`Automatica` lets your Particle device speak Alexa Smart Home **without writing any cloud
 code on the device**. You declare endpoints with instance-aware capabilities (power,
 brightness, color, range, mode, toggle, sensors, thermostat, media, locks, cameras …) in a
 few lines of C++, attach one control callback, and call `begin()`/`loop()`. A self-hosted
@@ -62,7 +62,7 @@ Compile* / *Cloud Flash* on your target device.
 
 ### Particle CLI
 ```sh
-# In a Particle project, add the dependency:
+# In a Particle project, add the dependency (registry id is lowercase):
 particle library add automatica
 
 # Compile + flash a chosen platform (boron, photon2, p2, argon, …):
@@ -73,7 +73,7 @@ particle flash <device-name> firmware.bin
 ### `library.properties`
 ```properties
 name=automatica
-version=0.1.1
+version=0.1.2
 author=Jeremy Proffitt
 category=IoT
 architectures=*
@@ -358,7 +358,7 @@ cloud primitives sit behind `CloudPort` (`src/CloudPort.h`); the on-device adapt
 is defined) maps them onto Device-OS `Particle.variable`/`.function`/`.publish`, and a test
 double is injected on the host.
 
-`automatica` is one library of the broader **automatica** platform (a self-hosted Alexa
+`Automatica` is one library of the broader **Automatica** platform (a self-hosted Alexa
 Smart Home Lambda + skill that drives these devices). The companion Lambda and the wire
 contract are maintained alongside it.
 
