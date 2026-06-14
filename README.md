@@ -12,6 +12,12 @@
   <img alt="license" src="https://img.shields.io/badge/license-MIT-green">
 </p>
 
+<p align="center">
+  <a href="https://www.amazon.com/dp/B0H2Z1JXS3/">🔊 Enable the Alexa skill</a>
+  &nbsp;•&nbsp;
+  <a href="https://podcasts.jeremy.ninja/?feed=5a4c5841-215e-463f-a7e5-69152cd739f5">🎧 Podcast</a>
+</p>
+
 ---
 
 ## What is this?
