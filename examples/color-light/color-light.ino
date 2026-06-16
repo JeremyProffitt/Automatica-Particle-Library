@@ -7,98 +7,129 @@
 // ALEXA CAPABILITIES EXPOSED (all SINGLETON — one per endpoint, no instance):
 //   • Alexa.PowerController      (code 'o', kCapPower) — TurnOn/TurnOff (bool).
 //   • Alexa.BrightnessController (code 'b', kCapBrightness) — level 0..100 (int).
-//       cmd.intVal carries the brightness percent.
 //   • Alexa.ColorController      (code 'c', kCapColor) — sets HUE + SATURATION.
-//       cmd.hue 0..360 (degrees), cmd.sat 0..100 (percent). cmd.bri is also
-//       present on the wire but here we KEEP brightness on the shared 'b' cap.
-//   NOTE: there is no separate "color brightness" — SetColor carries hue+sat only,
-//   and the 'b' BrightnessController owns the brightness level. We hold the last
-//   hue/sat/bri so a change to any one repaints the strip with the other two.
+//       cmd.hue 0..360 (degrees), cmd.sat 0..100 (percent).
+//
+// BEHAVIORS DEMONSTRATED:
+//   • Setting a COLOR also turns the light ON (if it was off).
+//   • Power / brightness / color are persisted via the unified LightSettings store
+//     (emulated EEPROM on Particle) and RESTORED on reset. Flip PERSIST_SETTINGS off
+//     to disable.
+//
+// NOTE: there is no separate "color brightness" — SetColor carries hue+sat only, and
+// the 'b' BrightnessController owns the brightness level. We hold the last hue/sat/bri
+// so a change to any one repaints the strip with the others.
 //
 // ALEXA UTTERANCES THIS ENABLES:
 //   "Alexa, turn on the lamp"
-//   "Alexa, set the lamp to blue"     (ColorController -> cmd.hue/cmd.sat)
-//   "Alexa, set the lamp to 50%"      (BrightnessController -> cmd.intVal=50)
+//   "Alexa, set the lamp to blue"     (ColorController -> hue/sat, also turns it on)
+//   "Alexa, set the lamp to 50%"      (BrightnessController -> intVal=50)
 //   "Alexa, dim the lamp"             (BrightnessController, relative adjust)
 //
 // HARDWARE WIRING ASSUMPTION:
 //   A NeoPixel / addressable RGB strip driven by your own setStripHsb() (stub).
 //   The neopixel library (#include below) is the typical driver; left commented
-//   so the example compiles without the extra dependency. No power pin is toggled
-//   here — "power off" is rendered as brightness 0 on the strip.
+//   so the example compiles without the extra dependency. "Power off" = brightness 0.
 //
 // GOTCHAS:
-//   • All three caps are SINGLETONS: addressed by cmd.code in the callback;
-//     cmd.instance is kNoInstance and is not used.
-//   • Brightness is SHARED — do not add a second brightness under color. Reading
-//     cmd.bri from a SetColor directive would double-own the level; we ignore it.
-//   • We mirror hue/sat/bri in globals because each directive only updates one of
-//     them; the strip needs all three to repaint.
+//   • All three caps are SINGLETONS: addressed by cmd.code in the callback.
+//   • LightSettings is the single owner of persisted state; add fields there (and bump
+//     its version) instead of writing your own EEPROM blobs, so features never clobber
+//     each other.
 //   • .ino preprocessor prototype rule: keep onControl's parameter fully qualified
-//     as automatica::CtlCommand so the auto-generated prototype (emitted above the
-//     `using namespace automatica;` line) matches the definition.
+//     as automatica::CtlCommand so the auto-generated prototype matches the definition.
 // =============================================================================
 #include "automatica.h"
 #include "AutomaticaCloud.h"
-// #include <neopixel.h>   // library depends on neopixel 1.0.4
+#include "LightSettings.h"   // unified persisted-settings store (EEPROM-backed on Particle)
+// #include <neopixel.h>     // library depends on neopixel 1.0.4
 
 using namespace automatica;
 
+// ---- persistence master switch: flip to false to disable all save+restore ----
+static const bool PERSIST_SETTINGS = true;
+
 // Core facade + Particle cloud adapter. Never name the facade 'automatica'
 // (namespace clash). The adapter ctor calls home.setCloudPort(this).
-Automatica home;                 // never name it 'automatica' (namespace clash)
+Automatica home;
 AutomaticaCloud cloud(home);
 
-// Last-known hue/sat/brightness, so a color or brightness change can repaint the
-// strip with the unchanged components. hue 0..360, sat 0..100, bri 0..100.
-static int gHue = 0, gSat = 0, gBri = 100;
+static int  gEp = -1;
+static bool gPower = false;
+static int  gHue = 0, gSat = 0, gBri = 100;   // hue 0..360, sat 0..100, bri 0..100
 
-// --- hardware stubs: replace with your Adafruit NeoPixel driver ---
+// ---- unified persisted settings (deferred/coalesced saves) ----
+static LightSettings settings("color_lamp");
+static bool     gDirty = false;
+static uint32_t gDirtyAt = 0;
+static void markDirty() { gDirty = true; gDirtyAt = millis(); }
+static void persistNow() {
+    settings.state.power = gPower ? 1 : 0;
+    settings.state.bri   = (int16_t)gBri;
+    settings.state.hue   = (int16_t)gHue;
+    settings.state.sat   = (int16_t)gSat;
+    settings.save();
+}
+static void applyRestoredSettings() {
+    gPower = settings.state.power != 0;
+    gBri   = settings.state.bri;
+    gHue   = settings.state.hue;
+    gSat   = settings.state.sat;
+}
+
+// --- hardware stub: replace with your Adafruit NeoPixel driver ---
 // hue 0..360, sat 0..100, bri 0..100 -> convert to RGB and push to the strip.
 static void setStripHsb(int hue, int sat, int bri) { (void)hue; (void)sat; (void)bri; }
-// "Off" = paint the strip at brightness 0 while preserving the stored hue/sat.
-static void applyPower(bool on) { setStripHsb(gHue, gSat, on ? gBri : 0); }
+// Render current state; "off" = brightness 0 while preserving stored hue/sat.
+static void render() { setStripHsb(gHue, gSat, gPower ? gBri : 0); }
 
-// Control callback. Reads:
-//   cmd.code    — capability code; dispatch.
-//   cmd.boolVal — 'o' PowerController (true=on -> repaint at gBri, false -> 0).
-//   cmd.intVal  — 'b' BrightnessController level 0..100.
-//   cmd.hue     — 'c' ColorController hue 0..360 (degrees).
-//   cmd.sat     — 'c' ColorController saturation 0..100 (percent).
-//   cmd.instance— kNoInstance (all singletons); not read.
-// Return true = handled (facade applies + reports state).
+// Push current power/brightness/color back to Alexa (used after the color->on auto-power).
+static void pushStateToAlexa() {
+    { CapState s; s.b   = gPower;             home.setInitialState(gEp, kCapPower,      kNoInstance, s); }
+    { CapState s; s.i   = gBri;               home.setInitialState(gEp, kCapBrightness, kNoInstance, s); }
+    { CapState s; s.hue = gHue; s.sat = gSat; home.setInitialState(gEp, kCapColor,      kNoInstance, s); }
+    home.reportState(gEp);
+}
+
+// Control callback. Dispatch on cmd.code (all singletons).
 // Fully-qualify CtlCommand (the .ino preprocessor emits the prototype before 'using namespace').
 static bool onControl(const automatica::CtlCommand& cmd, void*) {
     switch (cmd.code) {
-        case kCapPower:      applyPower(cmd.boolVal); return true;                                   // 'o'
-        case kCapBrightness: gBri = cmd.intVal; setStripHsb(gHue, gSat, gBri); return true;          // 'b' level 0..100
-        case kCapColor:      gHue = cmd.hue; gSat = cmd.sat; setStripHsb(gHue, gSat, gBri); return true; // 'c' hue+sat
+        case kCapPower:      gPower = cmd.boolVal;             render(); markDirty(); return true; // 'o'
+        case kCapBrightness: gBri   = cmd.intVal;             render(); markDirty(); return true; // 'b'
+        case kCapColor:      // setting a color also ensures the light is ON
+            gHue = cmd.hue; gSat = cmd.sat; gPower = true;
+            render(); pushStateToAlexa(); markDirty();
+            return true;                                                                            // 'c'
     }
     return false;   // unknown/unhandled -> Lambda returns an Alexa error
 }
 
 void setup() {
-    // Register the endpoint (idx == Alexa idx; declaration order is the device identity).
-    int lamp = home.addEndpoint("color_lamp", "Lamp", "automatica color light", {"LIGHT"});
+    settings.begin(PERSIST_SETTINGS);
+    if (settings.load()) applyRestoredSettings();   // restore on reset
 
-    // Declare the three SINGLETON capabilities. Each returns 0 (unused) — all are
-    // addressed by cmd.code, not by an instance index.
-    home.addPower(lamp);       // 'o' PowerController: TurnOn/TurnOff
-    home.addBrightness(lamp);  // 'b' BrightnessController: level 0..100
-    home.addColor(lamp);       // 'c' ColorController: hue 0..360 + sat 0..100
+    gEp = home.addEndpoint("color_lamp", "Lamp", "automatica color light", {"LIGHT"});
+    home.addPower(gEp);        // 'o' PowerController: TurnOn/TurnOff
+    home.addBrightness(gEp);   // 'b' BrightnessController: level 0..100
+    home.addColor(gEp);        // 'c' ColorController: hue 0..360 + sat 0..100
 
-    // Initial state: off, white-ish (sat 0), full brightness. Singletons -> kNoInstance.
-    //   CapState.b   -> Power bool.
-    //   CapState.i   -> Brightness level 0..100.
-    //   CapState.hue/.sat -> Color hue/sat (sat 0 = white/unsaturated).
-    { CapState s; s.b = false;              home.setInitialState(lamp, kCapPower,      kNoInstance, s); }
-    { CapState s; s.i = 100;                home.setInitialState(lamp, kCapBrightness, kNoInstance, s); }
-    { CapState s; s.hue = 0; s.sat = 0;     home.setInitialState(lamp, kCapColor,      kNoInstance, s); }
+    // Seed the manifest's initial reported state from the RESTORED values.
+    { CapState s; s.b   = gPower;             home.setInitialState(gEp, kCapPower,      kNoInstance, s); }
+    { CapState s; s.i   = gBri;               home.setInitialState(gEp, kCapBrightness, kNoInstance, s); }
+    { CapState s; s.hue = gHue; s.sat = gSat; home.setInitialState(gEp, kCapColor,      kNoInstance, s); }
 
     home.onControl(onControl);  // register dispatch callback
     home.begin();               // build manifest + register cloud var/function; call once
+    render();                   // show the restored state immediately
 }
 
 void loop() {
     home.loop();
+
+    // Deferred EEPROM save: flush ~1.5 s after the last change (coalesces edits).
+    if (gDirty && millis() - gDirtyAt > 1500) {
+        gDirty = false;
+        persistNow();
+    }
 }
