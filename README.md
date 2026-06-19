@@ -33,6 +33,11 @@ The on-device core is **Device-OS-free**: it owns a compact bit-packed binary wi
 wrapped in Ascii85 (no JSON on the MCU) and is unit-tested on a desktop. The Lambda is the
 only party that ever produces Alexa JSON.
 
+Generic Logger records are available through HTTP or a Particle webhook bridge.
+See `examples/logger-ingest/logger-ingest.ino` for publishing a Particle event
+that a webhook can POST to `/v1/logger/data`; native AWS IoT MQTT ingest is for
+ESP32/AWS IoT devices.
+
 ```cpp
 int lamp = home.addEndpoint("lamp", "Desk Lamp", "automatica desk lamp", {"LIGHT"});
 home.addPower(lamp);        // "Alexa, turn on the desk lamp"

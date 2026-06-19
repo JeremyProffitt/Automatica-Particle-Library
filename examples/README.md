@@ -6,7 +6,7 @@ archetype. Every sketch begins with a header comment that names the archetype, l
 exact Alexa capabilities it exposes (capability code + Alexa interface + singleton/instanced),
 the precise utterances it enables, the hardware-wiring assumptions, and the gotchas.
 
-There are **31 examples**. They are templates: copy one, replace the `apply*`/`read*` stubs
+There are **32 examples**. They are templates: copy one, replace the `apply*`/`read*` stubs
 with your hardware, flash, and your device speaks Alexa Smart Home with no JSON, HTTP, or
 OAuth on the MCU.
 
@@ -42,6 +42,11 @@ flowchart LR
 | `automaticaManifest0..N` | `Particle.variable` (string) | Paged binary discovery manifest (Ascii85). |
 | `automaticaCtl` | `Particle.function` → `int` | Control command (Ascii85 binary); returns `0` or a negative `CtlStatus`. |
 | `automaticaState` | `Particle.publish` (PRIVATE) | Coalesced, latest-wins state changes (Ascii85 binary), ≤1/sec. |
+
+Generic Logger records use a separate webhook bridge example:
+[`logger-ingest/`](logger-ingest/). It publishes a Particle event such as
+`logger/temperature/sensor-01`; configure a Particle webhook to POST that event
+to the Logger HTTP API. This is not native AWS IoT MQTT.
 
 ---
 
