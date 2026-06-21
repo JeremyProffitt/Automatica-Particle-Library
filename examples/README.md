@@ -6,7 +6,7 @@ archetype. Every sketch begins with a header comment that names the archetype, l
 exact Alexa capabilities it exposes (capability code + Alexa interface + singleton/instanced),
 the precise utterances it enables, the hardware-wiring assumptions, and the gotchas.
 
-There are **32 examples**. They are templates: copy one, replace the `apply*`/`read*` stubs
+There are **38 examples**. They are templates: copy one, replace the `apply*`/`read*` stubs
 with your hardware, flash, and your device speaks Alexa Smart Home with no JSON, HTTP, or
 OAuth on the MCU.
 
@@ -85,6 +85,109 @@ platform, then run **Particle: Cloud Flash** (or **Particle: Compile**). Workben
 
 ---
 
+## Example catalog (all 38 examples, alphabetical)
+
+| Example | Capabilities | One-liner |
+|---|---|---|
+| [`addressable-led/`](addressable-led/) | LCL pipeline | Full LCL v4 decode → StripEngine → WS2812 output with power clamp and digest reporting. |
+| [`av-input/`](av-input/) | `o` + `j` | InputController: select AV input by index (HDMI 1, HDMI 2, …). |
+| [`camera/`](camera/) | `C` | Stateless CameraStreamController; the Lambda renders the snapshot `imageUri`. |
+| [`ceiling-fan/`](ceiling-fan/) | `o` + `r` + `t` + `m` | Canonical instanced example: power + speed + oscillate + direction. |
+| [`channel-tv/`](channel-tv/) | `o` + `f` | ChannelController: change channel (absolute) / skip channels (signed). |
+| [`color-light/`](color-light/) | `o` + `b` + `c` | RGB color light; color carries hue+sat, brightness stays on shared `b`. |
+| [`crash-report/`](crash-report/) | CrashReporter | Detects panic/watchdog/brownout resets and publishes a one-shot crash record via Particle event. |
+| [`curtain/`](curtain/) | `r` (+ semantics) | `CURTAIN` position with open/close semantics. |
+| [`deep-sleep-sensor/`](deep-sleep-sensor/) | `e` + `n` + PowerManager | Battery climate sensor: wake, report temp/humidity + battery vitals, deep-sleep. |
+| [`device-vitals/`](device-vitals/) | vitals event | Periodic heap/RSSI/uptime/reset vitals published as a Particle event for fleet monitoring. |
+| [`dimmable-light/`](dimmable-light/) | `o` + `b` | On/off plus brightness (0–100). |
+| [`door-lock/`](door-lock/) | `l` | LockController lock/unlock with state read-back. |
+| [`doorbell/`](doorbell/) | `z` + `x` | Proactive DoorbellEventSource + EventDetectionSensor (fires a DoorbellPress). |
+| [`equalizer-soundbar/`](equalizer-soundbar/) | `o` + `q` | EqualizerController: bass/mid/treble bands plus preset modes. |
+| [`garage-door/`](garage-door/) | `m` (+ semantics) | Garage opener as an instanced ModeController with Open/Close semantics + PIN. |
+| [`humidity-sensor/`](humidity-sensor/) | `n` | Read-only humidity as a RangeController percent (0–100). |
+| [`hvac-thermostat/`](hvac-thermostat/) | `h` + `m` + `t` + `e` | Full HVAC: thermostat with ECO, plus instanced fan mode and aux-heat toggle. |
+| [`ir-blaster/`](ir-blaster/) | AutomaticaIR | Record IR signals from any remote; replay single/repeat/sequence; chunked transfer for long frames. |
+| [`logger-ingest/`](logger-ingest/) | Particle event webhook | Publishes `logger/<project>/<device>` events; configure a webhook to POST to the Logger HTTP API. |
+| [`media-player/`](media-player/) | `y` + `u` | Transport ops (play/pause/stop/next/…) plus volume + mute. |
+| [`motion-sensor/`](motion-sensor/) | `v` | Read-only MotionSensor (detected / not detected). |
+| [`multi-endpoint/`](multi-endpoint/) | mixed | One MCU exposing several Alexa endpoints; routes directives by `cmd.idx`. |
+| [`outbound-webhook/`](outbound-webhook/) | OutboundRules | On-device rules engine: POST projected state JSON to an OAuth2-protected external API on state change. |
+| [`percentage-dimmer/`](percentage-dimmer/) | `o` + `p` | Generic PercentageController 0–100 (not a light-specific brightness). |
+| [`power-level/`](power-level/) | `o` + `w` | PowerLevelController 0–100 (e.g. a heater element). |
+| [`roller-blind/`](roller-blind/) | `r` (+ semantics) | Position 0–100 with open/close/raise/lower semantics. |
+| [`scene-controller/`](scene-controller/) | `s` | Momentary SceneController (Activate/Deactivate). |
+| [`security-panel/`](security-panel/) | `a` | SecurityPanelController arm/disarm (DISARMED / ARMED_AWAY / ARMED_STAY / ARMED_NIGHT). |
+| [`sensor-fusion/`](sensor-fusion/) | `e` + `n` | Two-channel environmental node using `SensorPipeline` (calibration, EMA smoothing, deadband, Ledger config). |
+| [`smart-plug/`](smart-plug/) | `o` | On/off plug/outlet (`SMARTPLUG`/`OUTLET`). |
+| [`smart-switch/`](smart-switch/) | `o` | On/off wall switch (`SWITCH` display category). |
+| [`speaker/`](speaker/) | `u` | Absolute volume (0–100) + mute. |
+| [`step-speaker/`](step-speaker/) | `o` + `g` | Relative, momentary volume steps + mute (e.g. an IR receiver). |
+| [`temperature-sensor/`](temperature-sensor/) | `e` | Read-only TemperatureSensor reporting via `reportState()`. |
+| [`thermostat/`](thermostat/) | `h` + `e` | Setpoint + mode (HEAT/COOL/AUTO/OFF) with a current-temperature read-back. |
+| [`time-hold/`](time-hold/) | `o` + `i` | TimeHoldController: momentary Hold/Resume (e.g. pause/resume a washer). |
+| [`tunable-white-light/`](tunable-white-light/) | `o` + `b` + `k` | White light with color temperature in Kelvin (1000–10000). |
+| [`window-sensor/`](window-sensor/) | `d` | Read-only ContactSensor (open/closed) via `reportState()`. |
+
+---
+
+## Cross-platform parity matrix
+
+This table maps every archetype to its availability on Particle and ESP32. The camera
+archetype is named `camera` on Particle and `camera-snapshot` on ESP32 — same capability,
+different name.
+
+| Archetype | Particle | ESP32 | Notes |
+|---|---|---|---|
+| addressable-led | [`addressable-led/`](addressable-led/) | [`addressable-led/`](../../esp32/automatica/examples/addressable-led/) | Both |
+| av-input | [`av-input/`](av-input/) | [`av-input/`](../../esp32/automatica/examples/av-input/) | Both |
+| camera / camera-snapshot | [`camera/`](camera/) | [`camera-snapshot/`](../../esp32/automatica/examples/camera-snapshot/) | Both — name differs between platforms |
+| ceiling-fan | [`ceiling-fan/`](ceiling-fan/) | [`ceiling-fan/`](../../esp32/automatica/examples/ceiling-fan/) | Both |
+| channel-tv | [`channel-tv/`](channel-tv/) | [`channel-tv/`](../../esp32/automatica/examples/channel-tv/) | Both |
+| color-light | [`color-light/`](color-light/) | [`color-light/`](../../esp32/automatica/examples/color-light/) | Both |
+| crash-report | [`crash-report/`](crash-report/) | [`crash-report/`](../../esp32/automatica/examples/crash-report/) | Both |
+| curtain | [`curtain/`](curtain/) | [`curtain/`](../../esp32/automatica/examples/curtain/) | Both |
+| deep-sleep-sensor | [`deep-sleep-sensor/`](deep-sleep-sensor/) | [`deep-sleep-sensor/`](../../esp32/automatica/examples/deep-sleep-sensor/) | Both |
+| device-vitals | [`device-vitals/`](device-vitals/) | [`device-vitals/`](../../esp32/automatica/examples/device-vitals/) | Both |
+| dimmable-light | [`dimmable-light/`](dimmable-light/) | [`dimmable-light/`](../../esp32/automatica/examples/dimmable-light/) | Both |
+| door-lock | [`door-lock/`](door-lock/) | [`door-lock/`](../../esp32/automatica/examples/door-lock/) | Both |
+| doorbell | [`doorbell/`](doorbell/) | [`doorbell/`](../../esp32/automatica/examples/doorbell/) | Both |
+| equalizer-soundbar | [`equalizer-soundbar/`](equalizer-soundbar/) | [`equalizer-soundbar/`](../../esp32/automatica/examples/equalizer-soundbar/) | Both |
+| garage-door | [`garage-door/`](garage-door/) | [`garage-door/`](../../esp32/automatica/examples/garage-door/) | Both |
+| humidity-sensor | [`humidity-sensor/`](humidity-sensor/) | [`humidity-sensor/`](../../esp32/automatica/examples/humidity-sensor/) | Both |
+| hvac-thermostat | [`hvac-thermostat/`](hvac-thermostat/) | [`hvac-thermostat/`](../../esp32/automatica/examples/hvac-thermostat/) | Both |
+| logger-ingest | [`logger-ingest/`](logger-ingest/) | [`logger-ingest/`](../../esp32/automatica/examples/logger-ingest/) | Both (Particle: webhook bridge; ESP32: native MQTT ingest) |
+| media-player | [`media-player/`](media-player/) | [`media-player/`](../../esp32/automatica/examples/media-player/) | Both |
+| motion-sensor | [`motion-sensor/`](motion-sensor/) | [`motion-sensor/`](../../esp32/automatica/examples/motion-sensor/) | Both |
+| multi-endpoint | [`multi-endpoint/`](multi-endpoint/) | [`multi-endpoint/`](../../esp32/automatica/examples/multi-endpoint/) | Both |
+| outbound-webhook | [`outbound-webhook/`](outbound-webhook/) | [`outbound-webhook/`](../../esp32/automatica/examples/outbound-webhook/) | Both |
+| percentage-dimmer | [`percentage-dimmer/`](percentage-dimmer/) | [`percentage-dimmer/`](../../esp32/automatica/examples/percentage-dimmer/) | Both |
+| power-level | [`power-level/`](power-level/) | [`power-level/`](../../esp32/automatica/examples/power-level/) | Both |
+| roller-blind | [`roller-blind/`](roller-blind/) | [`roller-blind/`](../../esp32/automatica/examples/roller-blind/) | Both |
+| scene-controller | [`scene-controller/`](scene-controller/) | [`scene-controller/`](../../esp32/automatica/examples/scene-controller/) | Both |
+| security-panel | [`security-panel/`](security-panel/) | [`security-panel/`](../../esp32/automatica/examples/security-panel/) | Both |
+| sensor-fusion | [`sensor-fusion/`](sensor-fusion/) | [`sensor-fusion/`](../../esp32/automatica/examples/sensor-fusion/) | Both |
+| smart-plug | [`smart-plug/`](smart-plug/) | [`smart-plug/`](../../esp32/automatica/examples/smart-plug/) | Both |
+| smart-switch | [`smart-switch/`](smart-switch/) | [`smart-switch/`](../../esp32/automatica/examples/smart-switch/) | Both |
+| speaker | [`speaker/`](speaker/) | [`speaker/`](../../esp32/automatica/examples/speaker/) | Both |
+| step-speaker | [`step-speaker/`](step-speaker/) | [`step-speaker/`](../../esp32/automatica/examples/step-speaker/) | Both |
+| temperature-sensor | [`temperature-sensor/`](temperature-sensor/) | [`temperature-sensor/`](../../esp32/automatica/examples/temperature-sensor/) | Both |
+| thermostat | [`thermostat/`](thermostat/) | [`thermostat/`](../../esp32/automatica/examples/thermostat/) | Both |
+| time-hold | [`time-hold/`](time-hold/) | [`time-hold/`](../../esp32/automatica/examples/time-hold/) | Both |
+| tunable-white-light | [`tunable-white-light/`](tunable-white-light/) | [`tunable-white-light/`](../../esp32/automatica/examples/tunable-white-light/) | Both |
+| window-sensor | [`window-sensor/`](window-sensor/) | [`window-sensor/`](../../esp32/automatica/examples/window-sensor/) | Both |
+| ir-blaster | [`ir-blaster/`](ir-blaster/) | — | **Particle-only.** `AutomaticaIR` is a Particle-specific class; no ESP32 IR class is in scope. |
+| ble-provisioning | — | [`ble-provisioning/`](../../esp32/automatica/examples/ble-provisioning/) | **ESP32-only.** BLE GATT provisioning; Particle uses its own cloud claiming flow. |
+| captive-portal | — | [`captive-portal/`](../../esp32/automatica/examples/captive-portal/) | **ESP32-only.** SoftAP captive-portal for WiFi/Fleet-Provisioning onboarding; no Particle analog. |
+| lcl-decoder | — | [`lcl-decoder/`](../../esp32/automatica/examples/lcl-decoder/) | **ESP32-only.** Decoder-only LCL verification demo; Particle uses the automaticaCtl/Ascii85 contract instead. |
+| ota-demo | — | [`ota-demo/`](../../esp32/automatica/examples/ota-demo/) | **ESP32-only.** Signed A/B OTA via IoT Jobs; Particle OTA is built-in/automatic (not a missing example). |
+| provisioning-demo | — | [`provisioning-demo/`](../../esp32/automatica/examples/provisioning-demo/) | **ESP32-only.** Serial + Fleet Provisioning by claim; Particle uses its own cloud claiming flow. |
+| remote-logging | — | [`remote-logging/`](../../esp32/automatica/examples/remote-logging/) | **ESP32-only.** Structured per-device log drain to MQTT; covered on Particle by the existing logger-ingest example. |
+| shadow-cache | — | [`shadow-cache/`](../../esp32/automatica/examples/shadow-cache/) | **ESP32-only.** AWS IoT Device Shadow for durable desired/reported state; Particle uses cloud variables instead. |
+| taudio-portal | — | [`taudio-portal/`](../../esp32/automatica/examples/taudio-portal/) | **ESP32-only.** LilyGO T-Audio board-specific demo (SoftAP + captive-portal + color-light). |
+| tcamera-demo | — | [`tcamera-demo/`](../../esp32/automatica/examples/tcamera-demo/) | **ESP32-only.** LilyGO T-Camera board-specific demo (PIR + OLED + two endpoints). |
+
+---
+
 ## Examples by capability
 
 Capability codes (`o`, `b`, `r`, …) are defined in [`../../../contract/SPEC.md`](../../../contract/SPEC.md)
@@ -101,6 +204,7 @@ per endpoint (addressed by `cmd.code` **and** `cmd.instance`).
 | [`tunable-white-light/`](tunable-white-light/) | `o` + `b` + `k` | White light with color temperature in Kelvin (1000–10000). |
 | [`percentage-dimmer/`](percentage-dimmer/) | `o` + `p` | Generic PercentageController 0–100 (not a light-specific brightness). |
 | [`power-level/`](power-level/) | `o` + `w` | PowerLevelController 0–100 (e.g. a heater element). |
+| [`addressable-led/`](addressable-led/) | LCL pipeline | Full LCL v4 decode → StripEngine → WS2812 output with power clamp and digest reporting. |
 
 ### Climate
 
@@ -111,6 +215,7 @@ per endpoint (addressed by `cmd.code` **and** `cmd.instance`).
 | [`temperature-sensor/`](temperature-sensor/) | `e` | Read-only TemperatureSensor reporting via `reportState()`. |
 | [`humidity-sensor/`](humidity-sensor/) | `n` | Read-only humidity as a RangeController percent (0–100). |
 | [`sensor-fusion/`](sensor-fusion/) | `e` + `n` | Two-channel environmental node using `SensorPipeline` (calibration, EMA smoothing, deadband, Ledger config). |
+| [`deep-sleep-sensor/`](deep-sleep-sensor/) | `e` + `n` + PowerManager | Battery climate sensor: wake, report temp/humidity + battery vitals, deep-sleep. |
 
 ### Media & audio
 
@@ -162,6 +267,26 @@ per endpoint (addressed by `cmd.code` **and** `cmd.instance`).
 |---|---|---|
 | [`scene-controller/`](scene-controller/) | `s` | Momentary SceneController (Activate/Deactivate). |
 | [`multi-endpoint/`](multi-endpoint/) | mixed | One MCU exposing several Alexa endpoints; routes directives by `cmd.idx`. |
+
+### Device health & telemetry
+
+| Example | Demonstrates | One-liner |
+|---|---|---|
+| [`device-vitals/`](device-vitals/) | vitals event | Periodic heap/RSSI/uptime/reset vitals published as a Particle event for fleet monitoring. |
+| [`crash-report/`](crash-report/) | CrashReporter | Detects panic/watchdog/brownout resets and publishes a one-shot crash record via Particle event. |
+| [`logger-ingest/`](logger-ingest/) | Particle event webhook | Webhook bridge: POST `logger/<project>/<device>` events to the Logger HTTP API. |
+| [`outbound-webhook/`](outbound-webhook/) | OutboundRules | On-device rules engine: POST projected state JSON to an OAuth2-protected external API on state change. |
+
+### IR blaster (AutomaticaIR — standalone peer)
+
+`AutomaticaIR` is NOT integrated into `Automatica`. It uses separate seam headers and its own
+`begin()`/`loop()`. See [`../README.md#automaticair`](../README.md) and
+[`../../../docs/product/particle-library-guide.md`](../../../docs/product/particle-library-guide.md)
+section **11a** for the full API.
+
+| Example | Cloud surfaces | One-liner |
+|---|---|---|
+| [`ir-blaster/`](ir-blaster/) | `irBegin`, `irChunk`, `irSend`, `irRecord`, `irState`, `irCapture0..7` | Record IR signals from any remote; replay single/repeat/sequence; chunked transfer for long frames. |
 
 ---
 

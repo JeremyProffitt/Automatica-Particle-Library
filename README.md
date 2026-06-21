@@ -355,6 +355,131 @@ comment names the archetype, its capabilities, and the exact Alexa utterances it
 | `curtain/` | `r`+semantics | `CURTAIN` position |
 | `garage-door/` | `m`+semantics | open/closed + `GARAGE_DOOR` PIN |
 | `multi-endpoint/` | mixed | several endpoints on one MCU |
+| `ir-blaster/` | IR (AutomaticaIR) | record + replay IR signals; irSend single/repeat/sequence + chunked transfer; irRecord arm/cancel capture |
+
+---
+
+## AutomaticaIR — standalone IR blaster
+
+`AutomaticaIR` (`src/AutomaticaIR.h`, `src/AutomaticaIR.cpp`) is a **peer of `Automatica`**,
+not integrated into it. It turns a Particle device into a cloud-connected infrared blaster:
+record IR signals from a remote, then replay them on demand (single shot, repeat-N, or an
+ordered sequence). Like `Automatica`, it is **Device-OS-free** — only `std::string`/`int`/
+`std::vector` — and tested on the desktop with Catch2. Cloud wiring sits behind
+`IRCloudPort`; the on-device adapter `IRCloudParticle` maps it onto `Particle.variable`/
+`.function`.
+
+### Quick start (copy-paste sketch)
+
+```cpp
+// AutomaticaIR quick-start: IR blaster/recorder on a Particle Photon
+// Archetype: IR BLASTER — record signals from any remote, replay by voice/cloud.
+// Cloud surfaces (IR_SPEC.md §0):
+//   functions: irBegin, irChunk, irSend, irRecord
+//   variables: irState, irCapture0..irCapture7
+#include "AutomaticaIR.h"
+#include "IRHardwarePhoton.h"   // real hardware seam (PARTICLE must be defined)
+#include "IRCloudParticle.h"    // real cloud seam   (PARTICLE must be defined)
+
+// Seam objects: neither is owned by AutomaticaIR; both must outlive it.
+IRHardwarePhoton hw;          // wraps the A.IR-Shield PWM/ISR send+record hardware
+IRCloudParticle  cloud;       // maps IRCloudPort -> Particle.variable/function
+
+// The facade. Declared in global namespace (mirrors `Automatica`).
+AutomaticaIR ir(cloud, hw);
+
+void setup() {
+    // begin() rebuilds irState, registers the 4 functions + 9 variables
+    // (irState, irCapture0..irCapture7), and inits hardware. Call once. IR_SPEC.md §0.
+    ir.begin();
+}
+
+void loop() {
+    // loop() polls for a completed IR capture (when armed) and encodes it into the
+    // capture pages + bumps the sequence counter. IR_SPEC.md §4.
+    ir.loop();
+}
+```
+
+That registers all cloud surfaces. The Lambda then calls `irSend` to replay a signal
+and `irRecord` to arm a capture. See the `ir-blaster` example for the full wiring.
+
+### IR signal canonical form
+
+The payload `"38:9000,4500,560,1690;"` means: carrier 38 kHz, alternating mark/space
+timings in µs (t0 is always a mark). This form is stored verbatim by the backend so
+no transform is needed at replay time. See `contract/IR_SPEC.md §1` for the grammar.
+
+### Cloud surfaces (IR_SPEC.md §0)
+
+| Surface | Particle primitive | Purpose |
+|---|---|---|
+| `irBegin` | `Particle.function` → `int` | Open a chunked IR-signal transfer (`"freqHint:totalChunks"` → transferId ≥ 1). IR_SPEC.md §3.1. |
+| `irChunk` | `Particle.function` → `int` | Append one in-order chunk (`"transferId:seq:data"` → next expected seq). IR_SPEC.md §3.2. |
+| `irSend` | `Particle.function` → `int` | Replay a signal (single/repeat-N/sequence OR commit a chunked transfer) → pulse count. IR_SPEC.md §2, §3.3. |
+| `irRecord` | `Particle.function` → `int` | Arm or cancel IR capture (`"arm"` \| `"cancel"`). IR_SPEC.md §4. |
+| `irState` | `Particle.variable` (string) | Capture state + counters: `"<state>\|<seq>\|<pageCount>\|<pulseCount>\|<freqKHz>"`. IR_SPEC.md §5.1. |
+| `irCapture0` | `Particle.variable` (string) | Capture HEADER page: `"freq:totalPages:pulseCount"`. IR_SPEC.md §5.2. |
+| `irCapture1..7` | `Particle.variable` (string) | Capture CONTENT pages: consecutive ≤864-char slices of `"freq:csv;"`. IR_SPEC.md §5.2. |
+
+### irSend payload grammar (IR_SPEC.md §2)
+
+```
+single shot:   irSend("38:9000,4500,560,1690;")
+repeat-N:      irSend("38:9000,4500,560,1690;|repeat=3")
+sequence:      irSend("38:9000,4500,560,1690;38:3000,1000;|gap=40000")
+chunked commit:irSend("42:3")    // commit transferId=42, expecting 3 chunks
+```
+
+Returns the total pulse count (positive int) on success, or a negative `IRStatus`
+error code (see below). IR_SPEC.md §2.1.
+
+### Error / return codes (IR_SPEC.md §6)
+
+| Value | Name | When |
+|---|---|---|
+| `0` | `IR_OK` | success |
+| ≥ 1 | _(count)_ | transferId (from `irBegin`), next expected seq (from `irChunk`), or pulse count (from `irSend`) |
+| `-1` | `IR_ERR_PARSE` | malformed arg / bad number / bad grammar |
+| `-2` | `IR_ERR_NO_TRANSFER` | `irChunk`/`irSend` referenced an unknown transferId |
+| `-3` | `IR_ERR_SEQ` | chunk seq out of order |
+| `-4` | `IR_ERR_COUNT` | committed chunk count ≠ opened `totalChunks` |
+| `-5` | `IR_ERR_OVERFLOW` | signal exceeds `kMaxPulses` (1024) or chunk exceeds `kMaxChunkChars` (600) |
+| `-6` | `IR_ERR_BUSY` | send and capture are mutually exclusive |
+| `-7` | `IR_ERR_HARDWARE` | hardware send/arm failed |
+
+### Capture state machine (IR_SPEC.md §5.1)
+
+`irRecord("arm")` arms the hardware. Each `loop()` call polls for a settled frame.
+On completion `irState` becomes `"captured|<seq>|<pages>|<pulses>|<freqKHz>"` and
+`irCapture0..N` are populated. `irRecord("cancel")` aborts back to idle.
+
+| `CaptureState` | int | `irState` token | Meaning |
+|---|---|---|---|
+| `CAP_IDLE` | 0 | `idle` | not recording, no pending capture |
+| `CAP_ARMED` | 1 | `armed` | waiting for an IR frame |
+| `CAP_CAPTURED` | 2 | `captured` | frame received; pages populated |
+| `CAP_ERROR` | 3 | `error` | hardware/arm failure |
+
+### Gotchas
+
+- **Chunked transfers are required for signals > 622 chars.** The Device-OS
+  `Particle.function` arg cap is 622 bytes; longer signals must be sent as
+  `irBegin` → one or more `irChunk` calls → `irSend` commit. Signals ≤ ~622 bytes
+  fit in a single `irSend`. IR_SPEC.md §3.
+- **`irSend` disambiguation.** The payload is a single-shot canonical signal when its
+  first token (before `:`) is a numeric carrier kHz. It is a chunked commit when the
+  format is `"transferId:totalChunks"` (no `;`, `,`, or `|`). IR_SPEC.md §3.3.
+- **Capture arm/poll flow.** Call `irRecord("arm")`, then poll `irState` in the
+  Lambda until it reads `"captured|..."`, then read `irCapture0` (header) and
+  `irCapture1..N` (content pages) to reconstruct the full signal. IR_SPEC.md §4, §5.2.
+- **Send and capture are mutually exclusive.** `irSend` while armed returns
+  `IR_ERR_BUSY` (-6). Cancel capture first. IR_SPEC.md §4.
+- **`kMaxPulses = 1024`** — signals beyond this are rejected `IR_ERR_OVERFLOW` to
+  protect MCU RAM. Standard consumer remote frames are well below this limit.
+- **`kCapturePageCount = 8`** — irCapture0 is the header; irCapture1..7 are content
+  pages (7 × 864 chars ≈ 6048 chars ≈ ~1500 timings, above `kMaxPulses`), so a
+  capture always fits. IR_SPEC.md §5.2, §6.
 
 ---
 
