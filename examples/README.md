@@ -85,11 +85,10 @@ platform, then run **Particle: Cloud Flash** (or **Particle: Compile**). Workben
 
 ---
 
-## Example catalog (all 38 examples, alphabetical)
+## Example catalog (all 37 examples, alphabetical)
 
 | Example | Capabilities | One-liner |
 |---|---|---|
-| [`addressable-led/`](addressable-led/) | LCL pipeline | Full LCL v4 decode → StripEngine → WS2812 output with power clamp and digest reporting. |
 | [`av-input/`](av-input/) | `o` + `j` | InputController: select AV input by index (HDMI 1, HDMI 2, …). |
 | [`camera/`](camera/) | `C` | Stateless CameraStreamController; the Lambda renders the snapshot `imageUri`. |
 | [`ceiling-fan/`](ceiling-fan/) | `o` + `r` + `t` + `m` | Canonical instanced example: power + speed + oscillate + direction. |
@@ -138,7 +137,7 @@ different name.
 
 | Archetype | Particle | ESP32 | Notes |
 |---|---|---|---|
-| addressable-led | [`addressable-led/`](addressable-led/) | [`addressable-led/`](../../esp32/automatica/examples/addressable-led/) | Both |
+| addressable-led | — (Particle RGB via `color-light` + neopixel lib) | [`addressable-led/`](../../esp32/automatica/examples/addressable-led/) | ESP32-only — the LCL/StripEngine addressable-strip engine is ESP32-side; a Particle strip example would need the external neopixel library (against the no-ext-lib example convention) |
 | av-input | [`av-input/`](av-input/) | [`av-input/`](../../esp32/automatica/examples/av-input/) | Both |
 | camera / camera-snapshot | [`camera/`](camera/) | [`camera-snapshot/`](../../esp32/automatica/examples/camera-snapshot/) | Both — name differs between platforms |
 | ceiling-fan | [`ceiling-fan/`](ceiling-fan/) | [`ceiling-fan/`](../../esp32/automatica/examples/ceiling-fan/) | Both |
@@ -204,7 +203,6 @@ per endpoint (addressed by `cmd.code` **and** `cmd.instance`).
 | [`tunable-white-light/`](tunable-white-light/) | `o` + `b` + `k` | White light with color temperature in Kelvin (1000–10000). |
 | [`percentage-dimmer/`](percentage-dimmer/) | `o` + `p` | Generic PercentageController 0–100 (not a light-specific brightness). |
 | [`power-level/`](power-level/) | `o` + `w` | PowerLevelController 0–100 (e.g. a heater element). |
-| [`addressable-led/`](addressable-led/) | LCL pipeline | Full LCL v4 decode → StripEngine → WS2812 output with power clamp and digest reporting. |
 
 ### Climate
 

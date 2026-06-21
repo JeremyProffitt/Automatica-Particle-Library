@@ -151,7 +151,6 @@ static const char* resetReasonString(int reason) {
         case RESET_REASON_SAFE_MODE:        return "safe-mode";
         case RESET_REASON_DFU_MODE:         return "dfu";
         case RESET_REASON_FACTORY_RESET:    return "factory-reset";
-        case RESET_REASON_SLEEP_TIMER:      return "sleep-timer";
         default:                            return "unknown";
     }
 }
@@ -327,10 +326,10 @@ void loop() {
             // Arm a 3-second watchdog (fires System.reset() with watchdog reason).
             // The lambda (or static trampoline on older toolchains) just does nothing
             // — the watchdog fires because we never call it back within the timeout.
-            sTestWatchdog = new ApplicationWatchdog(3000, [](){
+            sTestWatchdog = new ApplicationWatchdog(3000U, std::function<void(void)>([](){
                 // Watchdog handler: called when the timeout expires.
                 // Returning without resetting lets Device-OS perform the reset.
-            });
+            }));
             // Busy-loop to starve the watchdog — never kick it.
             while (true) { /* intentional stall */ }
         }
